@@ -25,6 +25,8 @@
       "summary": { "en": "Kiro Free, Pro, Pro+ and Power — Kiro's sign-in, kiro-cli's, or an API key.", "zh": "Kiro Free、Pro、Pro+ 与 Power：Kiro 登录、沿用 kiro-cli 的登录，或 API key。" } },
     { "package": "@magpie-community/opencode-workbuddy-auth", "name": "WorkBuddy", "icon": "workbuddy-color", "providers": ["workbuddy", "workbuddy-ai"], "community": true, "replaces": "workbuddy",
       "summary": { "en": "WorkBuddy's China build (CodeBuddy plan) and its international build.", "zh": "WorkBuddy 国内版（CodeBuddy 套餐）与国际版。" } },
+    { "package": "Jindequan/magpie-plugin-bailian-free", "name": "Bailian Free Quota", "icon": "bailian-color", "providers": ["bailian-free"], "community": true,
+      "summary": { "en": "Alibaba Cloud Bailian's new-user free quota: each model's own grant, read with the console sign-in Bailian's CLI uses (or bl's own, read only); the sign-in makes its own DashScope key, and models come from Bailian's live catalog.", "zh": "阿里云百炼新用户免费额度：逐模型发放的免费额度，用百炼 CLI 同款控制台登录（或只读 bl 的登录态）读取；登录即自动创建专用 DashScope Key，模型来自百炼实时目录。" } },
     { "package": "@magpie-community/middleware-param-override", "name": "Param Override", "kind": "middleware", "community": true,
       "summary": { "en": "New API's parameter override: set, delete, move or rewrite fields of every request, by model or by condition.", "zh": "New API 的参数覆盖：按模型或条件设置、删除、移动或改写每个请求的字段。" } },
     { "package": "@magpie-community/middleware-model-map", "name": "Model Map", "kind": "middleware", "community": true,
