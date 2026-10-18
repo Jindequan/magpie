@@ -221,10 +221,11 @@ func Drawers(p provider.Provider) []catalog.Model {
 		return out
 	}
 	// any other subscription is asked through its agent's own API, which
-	// draws nothing magpie can ask for yet. A Responses-only relay (a Codex
+	// draws nothing magpie can ask for yet — a plugin's own model list
+	// says what it draws, so it goes on. A Responses-only relay (a Codex
 	// backend such as sub2api) has no chat base but serves the images API
 	// under the same root as its Responses endpoint, so it draws all the same.
-	if p.Account != nil || (p.Base(provider.Chat) == "" && p.Base(provider.Responses) == "") {
+	if (p.Account != nil && p.Account.Agent != "plugin") || (p.Base(provider.Chat) == "" && p.Base(provider.Responses) == "") {
 		return nil
 	}
 	out := p.PlanDrawers()
@@ -244,6 +245,14 @@ func Drawers(p provider.Provider) []catalog.Model {
 		if !have[m.ID] {
 			have[m.ID] = true
 			m.Provider = p.ID
+			out = append(out, m)
+		}
+	}
+	// a plugin's own list says what it draws: its models are no live
+	// fetch but what its plugin lists (models.go), their kinds mapped
+	for _, m := range p.Available() {
+		if m.Draws && !have[m.ID] {
+			have[m.ID] = true
 			out = append(out, m)
 		}
 	}

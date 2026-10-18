@@ -92,12 +92,25 @@ func Videomakers(p provider.Provider) []catalog.Model {
 // model's name alone makes none of them one: a list that doesn't say so,
 // and a user who doesn't, leave the provider making no videos.
 func customVideomakers(p provider.Provider) []catalog.Model {
-	if p.Account != nil || p.IsRemoteMagpie() || len(p.PlanVideos()) > 0 || videoBase(p) == "" {
+	// a plugin's own model list says what it films; another account's
+	// agent API is not one magpie can ask
+	if (p.Account != nil && p.Account.Agent != "plugin") || p.IsRemoteMagpie() || len(p.PlanVideos()) > 0 || videoBase(p) == "" {
 		return nil
 	}
-	out := catalog.LiveVideomakers(p.ID)
-	for i := range out {
-		out[i].Provider = p.ID
+	var out []catalog.Model
+	if p.IsPlugin() {
+		// its models are no live fetch but what its plugin lists, their
+		// kinds mapped (models.go)
+		for _, m := range p.Available() {
+			if m.Films {
+				out = append(out, m)
+			}
+		}
+	} else {
+		out = catalog.LiveVideomakers(p.ID)
+		for i := range out {
+			out[i].Provider = p.ID
+		}
 	}
 	// those the user said make videos, whatever the list says, and none
 	// they said draws (shen-joe, #1399: a relay whose /models marks none)

@@ -198,6 +198,18 @@ func pluginTierOn(provider string, m plugin.Model, tier string) bool {
 	return (to == Chat || to == Responses) && slices.Contains(m.ServiceTiers, tier)
 }
 
+// pluginDraws is whether a plugin's model only makes images, and
+// pluginFilms only videos: the kinds capabilities.output names, without
+// text — a model that also answers in text stays a chat model (draw.go:
+// chat image models stay on chat completions with modalities).
+func pluginDraws(outs []string) bool {
+	return len(outs) > 0 && !slices.Contains(outs, "text") && slices.Contains(outs, "image")
+}
+
+func pluginFilms(outs []string) bool {
+	return len(outs) > 0 && !slices.Contains(outs, "text") && slices.Contains(outs, "video")
+}
+
 func pluginCatalog(pp plugin.Provider) []catalog.Model {
 	out := make([]catalog.Model, 0, len(pp.Models))
 	for _, m := range pp.Models {
@@ -206,6 +218,11 @@ func pluginCatalog(pp plugin.Provider) []catalog.Model {
 			APIs: []string{string(pluginProtocol(pp.ID, m))}, Images: m.Image,
 			Context: catalog.Window(m.Input), Output: m.Output, Free: m.Free,
 			Rate: m.Rate, RateWas: m.RateWas,
+			// what the model only makes — the kinds capabilities.output
+			// says, without text — routes it to the images or videos API
+			// instead of chat; a model with text among its outputs stays
+			// a chat model however many images it also gives (draw.go)
+			Draws: pluginDraws(m.Outputs), Films: pluginFilms(m.Outputs),
 			// a decision model the plugin marked counts only where it
 			// serves a decision API (pp.Decide)
 			Decides: pp.Decide && m.Decides,
