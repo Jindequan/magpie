@@ -46,8 +46,9 @@ func TestBuiltinMarket(t *testing.T) {
 	}
 }
 
-// The market is fetched; one that fails is the copy fetched last, and
-// with none, the one built in. "off" never asks.
+// The market is fetched, the built-in list's plugins kept beside it; one
+// that fails is the copy fetched last, and with none, the one built in.
+// "off" never asks.
 func TestMarketSources(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	reset := func() { marketMu.Lock(); marketList = nil; marketMu.Unlock() }
@@ -63,18 +64,27 @@ func TestMarketSources(t *testing.T) {
 	t.Setenv("MAGPIE_PLUGIN_MARKET", srv.URL)
 	ctx := context.Background()
 
+	builtin, _ := parseMarket(builtinMarket)
+	has := func(l []Listing, pkg string) bool {
+		for _, x := range l {
+			if x.Package == pkg {
+				return true
+			}
+		}
+		return false
+	}
 	reset()
-	if l := Market(ctx); len(l) != 1 || l[0].Name != "X" {
-		t.Fatalf("fetched: %+v", l)
+	l := Market(ctx)
+	if !has(l, "opencode-x-auth") || len(l) != len(builtin)+1 {
+		t.Fatalf("fetched, builtin kept beside it: %+v", l)
 	}
 	up = false
 	reset()
-	if l := Market(ctx); len(l) != 1 || l[0].Package != "opencode-x-auth" {
+	if l := Market(ctx); !has(l, "opencode-x-auth") || len(l) != len(builtin)+1 {
 		t.Fatalf("down, the copy kept: %+v", l)
 	}
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	reset()
-	builtin, _ := parseMarket(builtinMarket)
 	if l := Market(ctx); len(l) != len(builtin) {
 		t.Fatalf("down, nothing kept: %d, want the %d built in", len(l), len(builtin))
 	}
@@ -173,5 +183,47 @@ func TestReadmeFromFolder(t *testing.T) {
 	}
 	if p.Readme != "a text one" {
 		t.Errorf("read %q, want the README.txt", p.Readme)
+	}
+}
+
+func TestMarketTakesGitSpecs(t *testing.T) {
+	l, err := parseMarket([]byte(`{"plugins":[
+		{"package":"Jindequan/magpie-plugin-bailian-free","name":"Git","community":true,"summary":{"en":"e","zh":"z"}},
+		{"package":"github:owner/repo","name":"Git2","community":true,"summary":{"en":"e","zh":"z"}},
+		{"package":"someone/else","name":"No community","summary":{"en":"e","zh":"z"}},
+		{"package":"Bad Name","community":true}
+	]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l) != 2 || l[0].Package != "Jindequan/magpie-plugin-bailian-free" || l[1].Package != "github:owner/repo" {
+		t.Fatalf("kept %v", l)
+	}
+}
+
+func TestMarketKeepsBuiltinBesideFetched(t *testing.T) {
+	fetched, err := parseMarket([]byte(`{"plugins":[{"package":"@magpie-community/opencode-zen-free-auth","name":"Zen","community":true,"summary":{"en":"e","zh":"z"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	builtin, err := parseMarket(builtinMarket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged := mergeBuiltin(fetched)
+	if len(merged) != len(builtin) {
+		t.Fatalf("merged %d, builtin %d: a fetched list must keep every builtin entry", len(merged), len(builtin))
+	}
+	seen := map[string]int{}
+	for _, x := range merged {
+		seen[x.Package]++
+	}
+	for p, n := range seen {
+		if n > 1 {
+			t.Errorf("%s listed twice", p)
+		}
+	}
+	if seen["@magpie-community/opencode-zen-free-auth"] != 1 {
+		t.Error("the fetched entry itself missing")
 	}
 }
