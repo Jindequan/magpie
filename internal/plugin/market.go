@@ -163,8 +163,11 @@ func parseMarket(b []byte) ([]Listing, error) {
 	out := r.Plugins[:0]
 	for _, l := range r.Plugins {
 		// magpie's community's alone: others' OpenCode plugins weren't
-		// written against magpie's sign-ins, and are found by a search
-		if l.Package != "" && pkgName.MatchString(l.Package) && l.Community {
+		// written against magpie's sign-ins, and are found by a search.
+		// A package may also be a git repository's spec (owner/repo,
+		// github:owner/repo, a git URL): a plugin can live on git alone,
+		// published to no registry, and the market says where it lives.
+		if l.Package != "" && (pkgName.MatchString(l.Package) || IsGit(l.Package)) && l.Community {
 			if l.Name == "" {
 				l.Name = l.Package
 			}
@@ -175,6 +178,26 @@ func parseMarket(b []byte) ([]Listing, error) {
 		return nil, errors.New("the list has no plugins")
 	}
 	return out, nil
+}
+
+// mergeBuiltin keeps the built-in list's plugins beside a fetched one: a
+// plugin that lives on git alone is listed built in and in no registry,
+// and the fetched list would otherwise drop it from the market.
+func mergeBuiltin(l []Listing) []Listing {
+	b, err := parseMarket(builtinMarket)
+	if err != nil {
+		return l
+	}
+	have := make(map[string]bool, len(l))
+	for _, x := range l {
+		have[x.Package] = true
+	}
+	for _, x := range b {
+		if !have[x.Package] {
+			l = append(l, x)
+		}
+	}
+	return l
 }
 
 // Market is the list of plugins magpie suggests: fetched at most every six
@@ -197,17 +220,17 @@ func Market(ctx context.Context) []Listing {
 		cancel()
 		if err == nil {
 			if l, err := parseMarket(b); err == nil {
-				marketList, marketAt = l, time.Now()
+				marketList, marketAt = mergeBuiltin(l), time.Now()
 				_ = os.MkdirAll(filepath.Dir(marketCache()), 0o755)
 				_ = os.WriteFile(marketCache(), b, 0o644)
-				return l
+				return marketList
 			}
 		}
 		if b, err := os.ReadFile(marketCache()); err == nil {
 			if l, err := parseMarket(b); err == nil {
 				// tried again in a minute, not six hours
-				marketList, marketAt = l, time.Now().Add(-6*time.Hour+time.Minute)
-				return l
+				marketList, marketAt = mergeBuiltin(l), time.Now().Add(-6*time.Hour+time.Minute)
+				return marketList
 			}
 		}
 	}
